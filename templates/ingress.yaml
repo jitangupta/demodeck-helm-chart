@@ -1,0 +1,106 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "demodeck-single-version.fullname" . }}-ingress
+  labels:
+    {{- include "demodeck-single-version.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    - {{ .Values.tenantApi.host }}
+    - {{ .Values.authApi.host }}
+    - {{ .Values.productApi.host }}
+    - {{ .Values.tenantRegistryUi.host }}
+    - {{ .Values.tenantUis.acme.host }}
+    - {{ .Values.tenantUis.globalx.host }}
+    - {{ .Values.tenantUis.initech.host }}
+    secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+  # Tenant API
+  - host: {{ .Values.tenantApi.host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.tenantApi.name }}-service
+            port:
+              number: 80
+  # Auth API
+  - host: {{ .Values.authApi.host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.authApi.name }}-service
+            port:
+              number: 80
+  # Product API
+  - host: {{ .Values.productApi.host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.productApi.name }}-service
+            port:
+              number: 80
+  # Tenant Registry UI
+  - host: {{ .Values.tenantRegistryUi.host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.tenantRegistryUi.name }}-service
+            port:
+              number: 80
+  # Acme Tenant UI
+  - host: {{ .Values.tenantUis.acme.host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.tenantUis.acme.name }}-service
+            port:
+              number: 80
+  # GlobalX Tenant UI
+  - host: {{ .Values.tenantUis.globalx.host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.tenantUis.globalx.name }}-service
+            port:
+              number: 80
+  # Initech Tenant UI
+  - host: {{ .Values.tenantUis.initech.host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.tenantUis.initech.name }}-service
+            port:
+              number: 80
+{{- end }}

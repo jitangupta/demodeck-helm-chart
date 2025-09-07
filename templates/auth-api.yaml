@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.authApi.name }}
+  labels:
+    app: {{ .Values.authApi.name }}
+    chart: {{ include "demodeck-single-version.chart" . }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.authApi.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.authApi.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.authApi.name }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Values.authApi.name }}
+        image: "{{ .Values.global.registry }}/{{ .Values.authApi.image }}:{{ .Values.authApi.tag }}"
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.authApi.port }}
+          name: http
+        env:
+        {{- range $key, $value := .Values.authApi.env }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.authApi.livenessProbe.path }}
+            port: {{ .Values.authApi.livenessProbe.port }}
+          initialDelaySeconds: {{ .Values.authApi.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.authApi.livenessProbe.periodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.authApi.readinessProbe.path }}
+            port: {{ .Values.authApi.readinessProbe.port }}
+          initialDelaySeconds: {{ .Values.authApi.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.authApi.readinessProbe.periodSeconds }}
+        resources:
+          {{- toYaml .Values.authApi.resources | nindent 10 }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.authApi.name }}-service
+  labels:
+    app: {{ .Values.authApi.name }}
+    chart: {{ include "demodeck-single-version.chart" . }}
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: {{ .Values.authApi.port }}
+    protocol: TCP
+    name: http
+  selector:
+    app: {{ .Values.authApi.name }}

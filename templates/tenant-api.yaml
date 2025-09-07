@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.tenantApi.name }}
+  labels:
+    app: {{ .Values.tenantApi.name }}
+    chart: {{ include "demodeck-single-version.chart" . }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.tenantApi.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.tenantApi.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.tenantApi.name }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Values.tenantApi.name }}
+        image: "{{ .Values.global.registry }}/{{ .Values.tenantApi.image }}:{{ .Values.tenantApi.tag }}"
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.tenantApi.port }}
+          name: http
+        env:
+        {{- range $key, $value := .Values.tenantApi.env }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.tenantApi.livenessProbe.path }}
+            port: {{ .Values.tenantApi.livenessProbe.port }}
+          initialDelaySeconds: {{ .Values.tenantApi.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.tenantApi.livenessProbe.periodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.tenantApi.readinessProbe.path }}
+            port: {{ .Values.tenantApi.readinessProbe.port }}
+          initialDelaySeconds: {{ .Values.tenantApi.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.tenantApi.readinessProbe.periodSeconds }}
+        resources:
+          {{- toYaml .Values.tenantApi.resources | nindent 10 }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tenantApi.name }}-service
+  labels:
+    app: {{ .Values.tenantApi.name }}
+    chart: {{ include "demodeck-single-version.chart" . }}
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: {{ .Values.tenantApi.port }}
+    protocol: TCP
+    name: http
+  selector:
+    app: {{ .Values.tenantApi.name }}

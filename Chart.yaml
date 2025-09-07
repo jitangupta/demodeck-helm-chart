@@ -1,0 +1,18 @@
+apiVersion: v2
+name: demodeck-single-version
+description: DemoDeck single-version deployment with multi-tenant UIs
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - multi-tenant
+  - saas
+  - microservices
+  - demodeck
+home: https://github.com/yourorg/aks-multi-tenant-multi-version
+sources:
+  - https://github.com/yourorg/aks-multi-tenant-multi-version
+maintainers:
+  - name: Platform Team
+    email: platform@demodeck.com
+dependencies: []

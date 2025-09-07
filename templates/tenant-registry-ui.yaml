@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.tenantRegistryUi.name }}
+  labels:
+    app: {{ .Values.tenantRegistryUi.name }}
+    chart: {{ include "demodeck-single-version.chart" . }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.tenantRegistryUi.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.tenantRegistryUi.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.tenantRegistryUi.name }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Values.tenantRegistryUi.name }}
+        image: "{{ .Values.global.registry }}/{{ .Values.tenantRegistryUi.image }}:{{ .Values.tenantRegistryUi.tag }}"
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.tenantRegistryUi.port }}
+          name: http
+        env:
+        - name: VUE_APP_TENANT_API_URL
+          value: "https://{{ .Values.tenantApi.host }}"
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.tenantRegistryUi.livenessProbe.path }}
+            port: {{ .Values.tenantRegistryUi.livenessProbe.port }}
+          initialDelaySeconds: {{ .Values.tenantRegistryUi.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.tenantRegistryUi.livenessProbe.periodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.tenantRegistryUi.readinessProbe.path }}
+            port: {{ .Values.tenantRegistryUi.readinessProbe.port }}
+          initialDelaySeconds: {{ .Values.tenantRegistryUi.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.tenantRegistryUi.readinessProbe.periodSeconds }}
+        resources:
+          {{- toYaml .Values.tenantRegistryUi.resources | nindent 10 }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tenantRegistryUi.name }}-service
+  labels:
+    app: {{ .Values.tenantRegistryUi.name }}
+    chart: {{ include "demodeck-single-version.chart" . }}
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: {{ .Values.tenantRegistryUi.port }}
+    protocol: TCP
+    name: http
+  selector:
+    app: {{ .Values.tenantRegistryUi.name }}
