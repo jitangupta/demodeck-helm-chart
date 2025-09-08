@@ -9,9 +9,9 @@ keywords:
   - saas
   - microservices
   - demodeck
-home: https://github.com/yourorg/aks-multi-tenant-multi-version
+home: https://github.com/jitangupta/demodeck-helm-chart
 sources:
-  - https://github.com/yourorg/aks-multi-tenant-multi-version
+  - https://github.com/jitangupta/demodeck-helm-chart
 maintainers:
   - name: Platform Team
     email: platform@demodeck.com

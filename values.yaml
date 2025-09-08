@@ -1,18 +1,18 @@
 # Global configuration
 global:
-  registry: "yourregistry.azurecr.io"
-  imageTag: "latest"
-  imagePullPolicy: IfNotPresent
-  environment: "production"
+  registry: ""
+  imageTag: "v1.0.0"
+  imagePullPolicy: Never
+  environment: "development"
 
 # Tenant API Configuration (Single Version)
 tenantApi:
   name: tenant-api
   image: demodeck-tenant-api
-  tag: "latest"
+  tag: "v1.0.0"
   port: 5121
   replicaCount: 2
-  host: "tenant-api.demodeck.xyz"
+  host: "tenant-api.demodeck.local"
   resources:
     requests:
       memory: "512Mi"
@@ -31,17 +31,17 @@ tenantApi:
     initialDelaySeconds: 5
     periodSeconds: 5
   env:
-    ASPNETCORE_ENVIRONMENT: "Production"
+    ASPNETCORE_ENVIRONMENT: "Development"
     ASPNETCORE_URLS: "http://+:5121"
 
 # Auth API Configuration (Single Version)
 authApi:
   name: auth-api
   image: demodeck-auth-api
-  tag: "latest"
+  tag: "v1.0.0"
   port: 5001
   replicaCount: 2
-  host: "auth-api.demodeck.xyz"
+  host: "auth-api.demodeck.local"
   resources:
     requests:
       memory: "256Mi"
@@ -60,17 +60,18 @@ authApi:
     initialDelaySeconds: 5
     periodSeconds: 5
   env:
-    ASPNETCORE_ENVIRONMENT: "Production"
+    ASPNETCORE_ENVIRONMENT: "Development"
     ASPNETCORE_URLS: "http://+:5001"
+    TenantUrl: "http://tenant-api.demodeck.local/api/tenant/"
 
 # Product API Configuration (Single Version)
 productApi:
   name: product-api
   image: demodeck-product-api
-  tag: "latest"
+  tag: "v1.0.0"
   port: 5002
   replicaCount: 3
-  host: "product-api.demodeck.xyz"
+  host: "product-api.demodeck.local"
   resources:
     requests:
       memory: "512Mi"
@@ -89,17 +90,18 @@ productApi:
     initialDelaySeconds: 5
     periodSeconds: 5
   env:
-    ASPNETCORE_ENVIRONMENT: "Production"
+    ASPNETCORE_ENVIRONMENT: "Development"
     ASPNETCORE_URLS: "http://+:5002"
+
 
 # Tenant Registry UI Configuration
 tenantRegistryUi:
   name: tenant-registry-ui
   image: demodeck-tenant-registry-ui
-  tag: "latest"
+  tag: "v1.0.0"
   replicaCount: 2
   port: 80
-  host: "tenantregistry.demodeck.xyz"
+  host: "tenantregistry.demodeck.local"
   resources:
     requests:
       memory: "128Mi"
@@ -117,16 +119,18 @@ tenantRegistryUi:
     port: 80
     initialDelaySeconds: 5
     periodSeconds: 5
+  env:
+    VUE_APP_TENANT_API_URL: "http://tenant-api.demodeck.local"
 
-# Tenant-specific UIs (3 instances)
+# Tenant-specific UIs (1 instance for now)
 tenantUis:
   acme:
     name: acme-ui
     image: demodeck-tenant-ui
-    tag: "latest"
+    tag: "v1.0.0"
     replicaCount: 1
     port: 80
-    host: "acme.demodeck.xyz"
+    host: "acme.demodeck.local"
     resources:
       requests:
         memory: "128Mi"
@@ -136,55 +140,17 @@ tenantUis:
         cpu: "200m"
     env:
       VUE_APP_TENANT_NAME: "acme"
-      VUE_APP_AUTH_API_URL: "https://auth-api.demodeck.xyz"
-      VUE_APP_PRODUCT_API_URL: "https://product-api.demodeck.xyz"
-  globalx:
-    name: globalx-ui
-    image: demodeck-tenant-ui
-    tag: "latest"
-    replicaCount: 1
-    port: 80
-    host: "globalx.demodeck.xyz"
-    resources:
-      requests:
-        memory: "128Mi"
-        cpu: "100m"
-      limits:
-        memory: "256Mi"
-        cpu: "200m"
-    env:
-      VUE_APP_TENANT_NAME: "globalx"
-      VUE_APP_AUTH_API_URL: "https://auth-api.demodeck.xyz"
-      VUE_APP_PRODUCT_API_URL: "https://product-api.demodeck.xyz"
-  initech:
-    name: initech-ui
-    image: demodeck-tenant-ui
-    tag: "latest"
-    replicaCount: 1
-    port: 80
-    host: "initech.demodeck.xyz"
-    resources:
-      requests:
-        memory: "128Mi"
-        cpu: "100m"
-      limits:
-        memory: "256Mi"
-        cpu: "200m"
-    env:
-      VUE_APP_TENANT_NAME: "initech"
-      VUE_APP_AUTH_API_URL: "https://auth-api.demodeck.xyz"
-      VUE_APP_PRODUCT_API_URL: "https://product-api.demodeck.xyz"
+      VUE_APP_AUTH_API_URL: "http://auth-api.demodeck.local"
+      VUE_APP_PRODUCT_API_URL: "http://product-api.demodeck.local"
 
 # Ingress Configuration for AGIC
 ingress:
   enabled: true
-  className: "azure/application-gateway"
+  className: "public"
   annotations:
-    appgw.ingress.kubernetes.io/backend-path-prefix: "/"
-    appgw.ingress.kubernetes.io/ssl-redirect: "true"
-    appgw.ingress.kubernetes.io/request-timeout: "30"
+    nginx.ingress.kubernetes.io/rewrite-target: /
   tls:
-    enabled: true
+    enabled: false
     secretName: demodeck-tls
 
 # Horizontal Pod Autoscaler
@@ -195,6 +161,11 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
 
+# Service Configuration
+service:
+  type: ClusterIP
+  port: 80
+
 # Service Account
 serviceAccount:
   create: true
@@ -203,15 +174,15 @@ serviceAccount:
 
 # Security
 podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
+  runAsNonRoot: false
+  runAsUser: 0
 
 securityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop:
     - ALL
-  readOnlyRootFilesystem: true
+  readOnlyRootFilesystem: false
 
 # Node selection
 nodeSelector: {}

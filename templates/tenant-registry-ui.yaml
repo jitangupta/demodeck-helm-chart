@@ -16,11 +16,10 @@ spec:
       labels:
         app: {{ .Values.tenantRegistryUi.name }}
     spec:
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      securityContext: {}
       containers:
       - name: {{ .Values.tenantRegistryUi.name }}
-        image: "{{ .Values.global.registry }}/{{ .Values.tenantRegistryUi.image }}:{{ .Values.tenantRegistryUi.tag }}"
+        image: "{{- if .Values.global.registry }}{{ .Values.global.registry }}/{{- end }}{{ .Values.tenantRegistryUi.image }}:{{ .Values.tenantRegistryUi.tag }}"
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         ports:
         - containerPort: {{ .Values.tenantRegistryUi.port }}
@@ -43,7 +42,8 @@ spec:
         resources:
           {{- toYaml .Values.tenantRegistryUi.resources | nindent 10 }}
         securityContext:
-          {{- toYaml .Values.securityContext | nindent 10 }}
+          runAsUser: 0
+          allowPrivilegeEscalation: true
 ---
 apiVersion: v1
 kind: Service

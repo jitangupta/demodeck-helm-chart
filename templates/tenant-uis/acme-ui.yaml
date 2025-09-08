@@ -18,11 +18,10 @@ spec:
         app: {{ .Values.tenantUis.acme.name }}
         tenant: acme
     spec:
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      securityContext: {}
       containers:
       - name: {{ .Values.tenantUis.acme.name }}
-        image: "{{ .Values.global.registry }}/{{ .Values.tenantUis.acme.image }}:{{ .Values.tenantUis.acme.tag }}"
+        image: "{{- if .Values.global.registry }}{{ .Values.global.registry }}/{{- end }}{{ .Values.tenantUis.acme.image }}:{{ .Values.tenantUis.acme.tag }}"
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         ports:
         - containerPort: {{ .Values.tenantUis.acme.port }}
@@ -47,7 +46,8 @@ spec:
         resources:
           {{- toYaml .Values.tenantUis.acme.resources | nindent 10 }}
         securityContext:
-          {{- toYaml .Values.securityContext | nindent 10 }}
+          runAsUser: 0
+          allowPrivilegeEscalation: true
 ---
 apiVersion: v1
 kind: Service
