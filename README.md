@@ -134,20 +134,32 @@ docker build -t demodeck-tenant-api:v1.0.0 .
 docker buildx build -t demodeck-tenant-registry-ui:v1.0.0 .
 ```
 
+Run a docker image
+```bash
+  docker buildx build \
+    --build-arg VUE_APP_TENANT_NAME=acme \
+    --build-arg VUE_APP_AUTH_API_URL="http://auth-api.demodeck.local" \
+    --build-arg VUE_APP_API_BASE_URL="http://product-api.demodeck.local" \
+    --build-arg VUE_APP_TENANT_API_URL="http://tenant-api.demodeck.local" \
+    --build-arg VUE_APP_TITLE="Acme Corporation Portal" \
+    --build-arg VUE_APP_ENVIRONMENT="production" \
+    -t demodeck-tenant-ui:acme-v2 .
+```
+
 Pull Existing docker image
 ```bash
 #Pull
-docker pull ghcr.io/jitangupta/demodeck.tenant.api/demodeck-tenant-api:v1.0.0
+docker pull ghcr.io/jitangupta/demodeck.tenant.api/demodeck-tenant-api:v1.0.1
 #Tag with simple name
-docker tag ghcr.io/jitangupta/demodeck.tenant.api/demodeck-tenant-api:v1.0.0 demodeck-tenant-api:v1.0.0
+docker tag ghcr.io/jitangupta/demodeck.tenant.api/demodeck-tenant-api:v1.0.1 demodeck-tenant-api:v1.0.1
 # (Optional) Remove the original long-name image to keep things clean
-docker rmi ghcr.io/jitangupta/demodeck.tenant.api/demodeck-tenant-api:v1.0.0
+docker rmi ghcr.io/jitangupta/demodeck.tenant.api/demodeck-tenant-api:v1.0.1
 ```
 
 Adding Docker image for microk8s
 ```bash
 # Export images from host Docker and import to microk8s
-docker save demodeck-auth-api:v1.0.0 | microk8s ctr image import -
+docker save demodeck-tenant-ui:acme | microk8s ctr image import -
 ```
 
 Check if images are avilable in mcirok8s

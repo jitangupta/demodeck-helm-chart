@@ -9,7 +9,7 @@ global:
 tenantApi:
   name: tenant-api
   image: demodeck-tenant-api
-  tag: "v1.0.0"
+  tag: "v1.0.1"
   port: 5121
   replicaCount: 2
   host: "tenant-api.demodeck.local"
@@ -33,6 +33,10 @@ tenantApi:
   env:
     ASPNETCORE_ENVIRONMENT: "Development"
     ASPNETCORE_URLS: "http://+:5121"
+    Cors__AllowedOrigins__0: "http://acme.demodeck.local" #Wildcard domains: http://*.demodeck.local isn't valid - wildcards only work with HTTPS in .NET CORS
+    Cors__AllowCredentials: "true"
+    Cors__AllowedHeaders__0: "*"
+    Cors__AllowedMethods__0: "*"
 
 # Auth API Configuration (Single Version)
 authApi:
@@ -62,7 +66,11 @@ authApi:
   env:
     ASPNETCORE_ENVIRONMENT: "Development"
     ASPNETCORE_URLS: "http://+:5001"
-    TenantUrl: "http://tenant-api.demodeck.local/api/tenant/"
+    TenantUrl: "http://tenant-api.demodeck.local/api/tenant/"    
+    Cors__AllowedOrigins__0: "http://acme.demodeck.local"
+    Cors__AllowCredentials: "true"
+    Cors__AllowedHeaders__0: "*"
+    Cors__AllowedMethods__0: "*"
 
 # Product API Configuration (Single Version)
 productApi:
@@ -91,7 +99,11 @@ productApi:
     periodSeconds: 5
   env:
     ASPNETCORE_ENVIRONMENT: "Development"
-    ASPNETCORE_URLS: "http://+:5002"
+    ASPNETCORE_URLS: "http://+:5002"    
+    Cors__AllowedOrigins__0: "http://acme.demodeck.local"
+    Cors__AllowCredentials: "true"
+    Cors__AllowedHeaders__0: "*"
+    Cors__AllowedMethods__0: "*"
 
 
 # Tenant Registry UI Configuration
@@ -119,15 +131,13 @@ tenantRegistryUi:
     port: 80
     initialDelaySeconds: 5
     periodSeconds: 5
-  env:
-    VUE_APP_TENANT_API_URL: "http://tenant-api.demodeck.local"
 
 # Tenant-specific UIs (1 instance for now)
 tenantUis:
   acme:
     name: acme-ui
     image: demodeck-tenant-ui
-    tag: "v1.0.0"
+    tag: "acme-v2"
     replicaCount: 1
     port: 80
     host: "acme.demodeck.local"
@@ -138,10 +148,22 @@ tenantUis:
       limits:
         memory: "256Mi"
         cpu: "200m"
-    env:
-      VUE_APP_TENANT_NAME: "acme"
-      VUE_APP_AUTH_API_URL: "http://auth-api.demodeck.local"
-      VUE_APP_PRODUCT_API_URL: "http://product-api.demodeck.local"
+
+  # Example: Additional tenant configuration for multi-tenant setup
+  # initech:
+  #   name: initech-ui
+  #   image: demodeck-tenant-ui
+  #   tag: "initech-v1.0.0"
+  #   replicaCount: 1
+  #   port: 80
+  #   host: "initech.demodeck.local"
+  #   resources:
+  #     requests:
+  #       memory: "128Mi"
+  #       cpu: "100m"
+  #     limits:
+  #       memory: "256Mi"
+  #       cpu: "200m"
 
 # Ingress Configuration for AGIC
 ingress:
