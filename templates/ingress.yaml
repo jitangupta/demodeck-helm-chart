@@ -21,8 +21,6 @@ spec:
     - {{ .Values.productApi.host }}
     - {{ .Values.tenantRegistryUi.host }}
     - {{ .Values.tenantUis.acme.host }}
-    - {{ .Values.tenantUis.globalx.host }}
-    - {{ .Values.tenantUis.initech.host }}
     secretName: {{ .Values.ingress.tls.secretName }}
   {{- end }}
   rules:
@@ -79,28 +77,6 @@ spec:
         backend:
           service:
             name: {{ .Values.tenantUis.acme.name }}-service
-            port:
-              number: 80
-  # GlobalX Tenant UI
-  - host: {{ .Values.tenantUis.globalx.host }}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: {{ .Values.tenantUis.globalx.name }}-service
-            port:
-              number: 80
-  # Initech Tenant UI
-  - host: {{ .Values.tenantUis.initech.host }}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: {{ .Values.tenantUis.initech.name }}-service
             port:
               number: 80
 {{- end }}

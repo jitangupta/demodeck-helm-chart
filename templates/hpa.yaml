@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "demodeck-helm-chart.fullname" . }}
+  name: {{ include "demodeck-single-version.fullname" . }}
   labels:
-    {{- include "demodeck-helm-chart.labels" . | nindent 4 }}
+    {{- include "demodeck-single-version.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "demodeck-helm-chart.fullname" . }}
+    name: {{ include "demodeck-single-version.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

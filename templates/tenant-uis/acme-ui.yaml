@@ -1,3 +1,8 @@
+# ACME Tenant UI Deployment
+# Note: Environment variables are baked into the Docker image at build time using build args.
+# The build configuration is specified in values.yaml under tenantUis.acme.buildConfig
+# To build tenant-specific images, use:
+# docker build --build-arg VUE_APP_TENANT_NAME=acme --build-arg VUE_APP_TITLE="ACME Corporation Portal" ... -t demodeck-tenant-ui:acme-v1.0.0
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -18,20 +23,14 @@ spec:
         app: {{ .Values.tenantUis.acme.name }}
         tenant: acme
     spec:
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      securityContext: {}
       containers:
       - name: {{ .Values.tenantUis.acme.name }}
-        image: "{{ .Values.global.registry }}/{{ .Values.tenantUis.acme.image }}:{{ .Values.tenantUis.acme.tag }}"
+        image: "{{- if .Values.global.registry }}{{ .Values.global.registry }}/{{- end }}{{ .Values.tenantUis.acme.image }}:{{ .Values.tenantUis.acme.tag }}"
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         ports:
         - containerPort: {{ .Values.tenantUis.acme.port }}
           name: http
-        env:
-        {{- range $key, $value := .Values.tenantUis.acme.env }}
-        - name: {{ $key }}
-          value: {{ $value | quote }}
-        {{- end }}
         livenessProbe:
           httpGet:
             path: /
@@ -47,7 +46,8 @@ spec:
         resources:
           {{- toYaml .Values.tenantUis.acme.resources | nindent 10 }}
         securityContext:
-          {{- toYaml .Values.securityContext | nindent 10 }}
+          runAsUser: 0
+          allowPrivilegeEscalation: true
 ---
 apiVersion: v1
 kind: Service

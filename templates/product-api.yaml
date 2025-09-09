@@ -20,7 +20,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
       - name: {{ .Values.productApi.name }}
-        image: "{{ .Values.global.registry }}/{{ .Values.productApi.image }}:{{ .Values.productApi.tag }}"
+        image: "{{- if .Values.global.registry }}{{ .Values.global.registry }}/{{- end }}{{ .Values.productApi.image }}:{{ .Values.productApi.tag }}"
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         ports:
         - containerPort: {{ .Values.productApi.port }}
