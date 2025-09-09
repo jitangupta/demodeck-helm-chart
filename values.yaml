@@ -34,6 +34,7 @@ tenantApi:
     ASPNETCORE_ENVIRONMENT: "Development"
     ASPNETCORE_URLS: "http://+:5121"
     Cors__AllowedOrigins__0: "http://acme.demodeck.local" #Wildcard domains: http://*.demodeck.local isn't valid - wildcards only work with HTTPS in .NET CORS
+    Cors__AllowedOrigins__1: "http://tenantregistry.demodeck.local"
     Cors__AllowCredentials: "true"
     Cors__AllowedHeaders__0: "*"
     Cors__AllowedMethods__0: "*"
@@ -110,7 +111,7 @@ productApi:
 tenantRegistryUi:
   name: tenant-registry-ui
   image: demodeck-tenant-registry-ui
-  tag: "v1.0.0"
+  tag: "v1.0.1"
   replicaCount: 2
   port: 80
   host: "tenantregistry.demodeck.local"
@@ -137,7 +138,7 @@ tenantUis:
   acme:
     name: acme-ui
     image: demodeck-tenant-ui
-    tag: "acme-v2"
+    tag: "acme-v4"
     replicaCount: 1
     port: 80
     host: "acme.demodeck.local"

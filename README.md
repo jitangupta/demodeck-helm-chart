@@ -143,7 +143,7 @@ Run a docker image
     --build-arg VUE_APP_TENANT_API_URL="http://tenant-api.demodeck.local" \
     --build-arg VUE_APP_TITLE="Acme Corporation Portal" \
     --build-arg VUE_APP_ENVIRONMENT="production" \
-    -t demodeck-tenant-ui:acme-v2 .
+    -t demodeck-tenant-ui:acme-v4 .
 ```
 
 Pull Existing docker image
