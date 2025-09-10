@@ -1,8 +1,8 @@
 # Global configuration
 global:
-  registry: ""
+  registry: "demodeckacr.azurecr.io"
   imageTag: "v1.0.0"
-  imagePullPolicy: Never
+  imagePullPolicy: IfNotPresent
   environment: "development"
 
 # Tenant API Configuration (Single Version)
@@ -12,7 +12,7 @@ tenantApi:
   tag: "v1.0.1"
   port: 5121
   replicaCount: 2
-  host: "tenant-api.demodeck.local"
+  host: "tenant-api.demodeck.xyz"
   resources:
     requests:
       memory: "512Mi"
@@ -33,8 +33,9 @@ tenantApi:
   env:
     ASPNETCORE_ENVIRONMENT: "Development"
     ASPNETCORE_URLS: "http://+:5121"
-    Cors__AllowedOrigins__0: "http://acme.demodeck.local" #Wildcard domains: http://*.demodeck.local isn't valid - wildcards only work with HTTPS in .NET CORS
-    Cors__AllowedOrigins__1: "http://tenantregistry.demodeck.local"
+    Cors__AllowedOrigins__0: "https://acme.demodeck.xyz" #Wildcard domains: http://*.demodeck.xyz isn't valid - wildcards only work with HTTPS in .NET CORS
+    Cors__AllowedOrigins__1: "https://tenantregistry.demodeck.xyz"
+    Cors__AllowedOrigins__2: "https://*.demodeck.xyz"
     Cors__AllowCredentials: "true"
     Cors__AllowedHeaders__0: "*"
     Cors__AllowedMethods__0: "*"
@@ -46,7 +47,7 @@ authApi:
   tag: "v1.0.0"
   port: 5001
   replicaCount: 2
-  host: "auth-api.demodeck.local"
+  host: "auth-api.demodeck.xyz"
   resources:
     requests:
       memory: "256Mi"
@@ -67,8 +68,9 @@ authApi:
   env:
     ASPNETCORE_ENVIRONMENT: "Development"
     ASPNETCORE_URLS: "http://+:5001"
-    TenantUrl: "http://tenant-api.demodeck.local/api/tenant/"    
-    Cors__AllowedOrigins__0: "http://acme.demodeck.local"
+    TenantUrl: "https://tenant-api.demodeck.xyz/api/tenant/"    
+    Cors__AllowedOrigins__0: "https://acme.demodeck.xyz"
+    Cors__AllowedOrigins__1: "https://*.demodeck.xyz"
     Cors__AllowCredentials: "true"
     Cors__AllowedHeaders__0: "*"
     Cors__AllowedMethods__0: "*"
@@ -80,7 +82,7 @@ productApi:
   tag: "v1.0.0"
   port: 5002
   replicaCount: 3
-  host: "product-api.demodeck.local"
+  host: "product-api.demodeck.xyz"
   resources:
     requests:
       memory: "512Mi"
@@ -101,7 +103,8 @@ productApi:
   env:
     ASPNETCORE_ENVIRONMENT: "Development"
     ASPNETCORE_URLS: "http://+:5002"    
-    Cors__AllowedOrigins__0: "http://acme.demodeck.local"
+    Cors__AllowedOrigins__0: "https://acme.demodeck.xyz"
+    Cors__AllowedOrigins__1: "https://*.demodeck.xyz"
     Cors__AllowCredentials: "true"
     Cors__AllowedHeaders__0: "*"
     Cors__AllowedMethods__0: "*"
@@ -114,7 +117,7 @@ tenantRegistryUi:
   tag: "v1.0.1"
   replicaCount: 2
   port: 80
-  host: "tenantregistry.demodeck.local"
+  host: "tenantregistry.demodeck.xyz"
   resources:
     requests:
       memory: "128Mi"
@@ -141,7 +144,7 @@ tenantUis:
     tag: "acme-v4"
     replicaCount: 1
     port: 80
-    host: "acme.demodeck.local"
+    host: "acme.demodeck.xyz"
     resources:
       requests:
         memory: "128Mi"
@@ -150,14 +153,14 @@ tenantUis:
         memory: "256Mi"
         cpu: "200m"
 
-  # Example: Additional tenant configuration for multi-tenant setup
+  #Example: Additional tenant configuration for multi-tenant setup
   # initech:
   #   name: initech-ui
   #   image: demodeck-tenant-ui
   #   tag: "initech-v1.0.0"
   #   replicaCount: 1
   #   port: 80
-  #   host: "initech.demodeck.local"
+  #   host: "initech.demodeck.xyz"
   #   resources:
   #     requests:
   #       memory: "128Mi"
@@ -166,14 +169,17 @@ tenantUis:
   #       memory: "256Mi"
   #       cpu: "200m"
 
-# Ingress Configuration for AGIC
+# Ingress Configuration for NGINX
 ingress:
   enabled: true
-  className: "public"
+  className: "nginx"
   annotations:
+    kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
   tls:
-    enabled: false
+    enabled: true
     secretName: demodeck-tls
 
 # Horizontal Pod Autoscaler

@@ -1,3 +1,82 @@
+## Azure Container Registry (ACR)
+
+## Prerequitis 
+If you have microk8s installed or have more than one context on local machine do the following
+```bash
+az login
+
+az account set --subscription "YOUR_SUBSCRIPTION_NAME_OR_ID"
+
+az aks get-credentials --resource-group rg-aks-resource --name aks-poc-new
+#Copy Config into WSL
+mkdir -p ~/.kube
+cp /mnt/c/Users/JITAN/.kube/config ~/.kube/config
+
+#Verify Contexts in WSL
+kubectl config get-contexts
+
+#Switch to Your AKS Context
+kubectl config use-context aks-poc-new
+
+#Verify:
+kubectl config current-context
+
+#(Optional) Keep MicroK8s + AKS Together
+KUBECONFIG=~/.kube/config:/mnt/c/Users/JITAN/.kube/config kubectl config view --merge --flatten > /tmp/config
+mv /tmp/config ~/.kube/config
+```
+
+### 1. Create ACR through Azure Portal
+Create ACR through portal, once resource is created, you can move ahead with pushing dockerized images to ACR.
+Once created, go and create an admin user, it will be useful when you try to install helm charts through local machine
+You will have to create a secret 
+
+### 2. Push Images to ACR
+```bash
+docker pull ghcr.io/jitangupta/demodeck.tenant.api/demodeck-tenant-api:v1.0.1
+#Tag with simple name
+docker tag ghcr.io/jitangupta/demodeck.tenant.api/demodeck-tenant-api:v1.0.1 demodeck-tenant-api:v1.0.1
+
+# if you are logged in, then login to ACR
+# Get access token
+az acr login -n demodeckacr --resource-group rg-aks-resource --expose-token
+# Login to ACR
+echo <ACCESS_TOKEN> | docker login demodeckacr.azurecr.io -u 00000000-0000-0000-0000-000000000000 --password-stdin
+
+# Tag and push to ACR
+docker tag demodeck-product-api:v1.0.0 demodeckacr.azurecr.io/demodeck-product-api:v1.0.0
+
+docker push demodeckacr.azurecr.io/demodeck-tenant-registry-ui:v1.0.1
+```
+
+### 3. Create AKS through Azure Portal
+Once the resource is created, login to AKS 
+```bash
+az aks get-credentials --resource-group rg-aks-resource --name aks-poc-new
+# Create Secret for AKS with ACR details, required to pull the image, when you install through helm form local machine
+kubectl create secret docker-registry acr-secret \
+  --docker-server=demodeckacr.azurecr.io \
+  --docker-username=demodeckacr \
+  --docker-password=kTYgPXxC04DfXoKsacwsYy809Sli02chcJAKGGafJv+ACRCabW8C
+```
+```yaml
+spec:
+  containers:
+  - name: auth-api
+    image: demodeckacr.azurecr.io/demodeck-auth-api:v1.0.0
+  imagePullSecrets: #<--add to auth-api.yaml file
+  - name: acr-secret #<--add to auth-api.yaml file
+```
+
+### 4. Enable NGINX Ingress Controller
+```bash
+helm upgrade --install ingress-nginx ingress-nginx \
+    --repo https://kubernetes.github.io/ingress-nginx \
+    --namespace ingress-nginx --create-namespacey
+```
+
+### 5. Enable NGINX Ingress Controller
+
 # 🌐 DNS Configuration Requirements
 
 ## Option 1: Azure DNS Zone (Recommended for Production)
@@ -188,3 +267,62 @@ az acr import \
   --username <github-username> \
   --password <GHCR_PAT>
 ```
+### Find App Gateway Public IP
+```bash
+az network public-ip show --resource-group <rg> --name <agw-ip-name>
+```
+
+### Apply Cert-manager
+```bash
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
+
+kubectl apply -f - <<EOF
+  apiVersion: cert-manager.io/v1
+  kind: ClusterIssuer
+  metadata:
+    name: letsencrypt-prod
+  spec:
+    acme: # ← This is Let's Encrypt's ACME protocol
+      server: https://acme-v02.api.letsencrypt.org/directory
+      email: your-email@example.com  # ← Your email here
+      privateKeySecretRef:
+        name: letsencrypt-prod
+      solvers:
+      - http01:
+          ingress:
+            class: azure/application-gateway
+  EOF
+  ```
+
+## Push docker image to ACR using WSL:
+```bash
+# if you are logged in, then login to ACR
+# Get access token
+az acr login -n demodeckacr --resource-group rg-aks-resource --expose-token
+# Login to ACR
+echo <ACCESS_TOKEN> | docker login demodeckacr.azurecr.io -u 00000000-0000-0000-0000-000000000000 --password-stdin
+
+# Tag and push to ACR
+docker tag demodeck-product-api:v1.0.0 demodeckacr.azurecr.io/demodeck-product-api:v1.0.0
+
+docker push demodeckacr.azurecr.io/demodeck-tenant-registry-ui:v1.0.1
+```
+## Enable NGINX Ingress Controller
+```bash
+helm upgrade --install ingress-nginx ingress-nginx \
+    --repo https://kubernetes.github.io/ingress-nginx \
+    --namespace ingress-nginx --create-namespace
+```
+
+## Enable AGIC ingress
+```bash
+az aks enable-addons -n aks-poc -g rg-aks-resource -a ingress-appgw --appgw-name demodeck-appgw
+
+```
+
+  1. Install NGINX Ingress Controller:
+  helm upgrade --install ingress-nginx ingress-nginx \
+    --repo https://kubernetes.github.io/ingress-nginx \
+    --namespace ingress-nginx --create-namespace
+  2. DNS Setup: Point your domains to NGINX LoadBalancer IP (not Application Gateway)
+  3. cert-manager + ClusterIssuer: Same as before for SSL certificates
