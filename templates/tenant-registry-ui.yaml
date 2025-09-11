@@ -26,7 +26,7 @@ spec:
           name: http
         env:
         - name: VUE_APP_TENANT_API_URL
-          value: "https://{{ .Values.tenantApi.host }}"
+          value: "http://{{ .Values.tenantApi.host }}"
         livenessProbe:
           httpGet:
             path: {{ .Values.tenantRegistryUi.livenessProbe.path }}
