@@ -1,0 +1,122 @@
+{{- if .Values.services.legacyAPI.enabled }}
+---
+# Legacy API - .NET Framework 4.8 Windows Container
+# This deployment requires Windows nodes in the AKS cluster
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.services.legacyAPI.name }}
+  namespace: {{ .Values.namespaces.services }}
+  labels:
+    {{- include "demodeck.labels" . | nindent 4 }}
+    app: {{ .Values.services.legacyAPI.name }}
+    app.kubernetes.io/component: legacy-api
+    app.kubernetes.io/platform: windows
+spec:
+  replicas: {{ .Values.services.legacyAPI.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.services.legacyAPI.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.services.legacyAPI.name }}
+        app.kubernetes.io/component: legacy-api
+        app.kubernetes.io/platform: windows
+    spec:
+      # Windows node selection - critical for .NET Framework containers
+      nodeSelector:
+        {{- toYaml .Values.services.legacyAPI.nodeSelector | nindent 8 }}
+      # Tolerations for Windows node taints
+      tolerations:
+        {{- toYaml .Values.services.legacyAPI.tolerations | nindent 8 }}
+      containers:
+      - name: {{ .Values.services.legacyAPI.name }}
+        image: {{ .Values.global.registry }}/{{ .Values.services.legacyAPI.image }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{ .Values.services.legacyAPI.port }}
+          name: http
+        env:
+        - name: AppSettings__ServiceName
+          value: "Demodeck.Legacy.Api"
+        - name: AppSettings__Version
+          value: "1.0.0"
+        - name: AppSettings__Environment
+          value: "Production"
+        resources:
+          {{- toYaml .Values.services.legacyAPI.resources | nindent 10 }}
+        # Windows containers need longer startup time due to IIS initialization
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.services.legacyAPI.healthPath }}
+            port: {{ .Values.services.legacyAPI.port }}
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.services.legacyAPI.healthPath }}
+            port: {{ .Values.services.legacyAPI.port }}
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.services.legacyAPI.name }}-service
+  namespace: {{ .Values.namespaces.services }}
+  labels:
+    {{- include "demodeck.labels" . | nindent 4 }}
+    app: {{ .Values.services.legacyAPI.name }}
+    app.kubernetes.io/platform: windows
+spec:
+  selector:
+    app: {{ .Values.services.legacyAPI.name }}
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: {{ .Values.services.legacyAPI.port }}
+    name: http
+  type: ClusterIP
+{{- if .Values.services.legacyAPI.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.services.legacyAPI.name }}-ingress
+  namespace: {{ .Values.namespaces.services }}
+  labels:
+    {{- include "demodeck.labels" . | nindent 4 }}
+    app: {{ .Values.services.legacyAPI.name }}
+    app.kubernetes.io/platform: windows
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.global.ingress.className }}
+    appgw.ingress.kubernetes.io/use-private-ip: {{ .Values.global.ingress.usePrivateIP | quote }}
+    {{- if .Values.global.ingress.enableSSL }}
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.global.ingress.className }}
+  rules:
+  - host: {{ .Values.services.legacyAPI.ingress.host }}.{{ .Values.global.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.services.legacyAPI.name }}-service
+            port:
+              number: 80
+  {{- if .Values.global.ingress.enableSSL }}
+  tls:
+  - hosts:
+    - {{ .Values.services.legacyAPI.ingress.host }}.{{ .Values.global.domain }}
+    secretName: {{ .Values.services.legacyAPI.name }}-tls-secret
+  {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,163 @@
+# Grafana Alloy configuration for Windows nodes
+# Helm chart: grafana/alloy
+# Install: helm upgrade --install alloy grafana/alloy -n observability -f alloy-values.yaml
+#
+# Alloy is the successor to Grafana Agent and Promtail, with native Windows support
+
+image:
+  repository: grafana/alloy
+  tag: "v1.0.0"
+  pullPolicy: IfNotPresent
+
+# Windows node selector - critical for Windows log collection
+nodeSelector:
+  kubernetes.io/os: windows
+
+tolerations:
+  - key: "os"
+    operator: "Equal"
+    value: "windows"
+    effect: "NoSchedule"
+
+# DaemonSet mode for log collection
+controller:
+  type: daemonset
+
+# Windows-specific volume mounts
+extraVolumes:
+  - name: varlog
+    hostPath:
+      path: C:\var\log
+      type: DirectoryOrCreate
+  - name: programdata
+    hostPath:
+      path: C:\ProgramData\docker\containers
+      type: DirectoryOrCreate
+
+extraVolumeMounts:
+  - name: varlog
+    mountPath: /var/log
+  - name: programdata
+    mountPath: /programdata/docker/containers
+    readOnly: true
+
+# Alloy configuration using River syntax
+alloy:
+  configMap:
+    create: true
+    content: |
+      // =============================================================================
+      // Grafana Alloy Configuration for Windows Nodes
+      // Collects logs and sends to Loki with same label format as Fluent-bit
+      // =============================================================================
+
+      // Logging configuration
+      logging {
+        level  = "info"
+        format = "logfmt"
+      }
+
+      // Discovery for Kubernetes pods on this node
+      discovery.kubernetes "pods" {
+        role = "pod"
+
+        selectors {
+          role = "pod"
+          field = "spec.nodeName=" + env("HOSTNAME")
+        }
+      }
+
+      // Relabeling for pod metadata - match Fluent-bit label format
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        // Extract namespace
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        // Extract pod name
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+
+        // Extract container name
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+
+        // Extract node name
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+
+        // Build log file path for Windows containers
+        rule {
+          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          target_label  = "__path__"
+          separator     = "/"
+          replacement   = "C:\\var\\log\\pods\\*$1\\$2\\*.log"
+        }
+      }
+
+      // Loki log source for Windows container logs
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.process.add_labels.receiver]
+      }
+
+      // Process and add labels to match Fluent-bit format
+      loki.process "add_labels" {
+        forward_to = [loki.write.loki.receiver]
+
+        // Add static labels matching Fluent-bit output
+        stage.static_labels {
+          values = {
+            job         = "alloy",
+            cluster     = "demodeck-aks",
+            environment = "demo",
+            os          = "windows",
+            collector   = "alloy",
+          }
+        }
+
+        // Parse JSON logs if present
+        stage.json {
+          expressions = {
+            log    = "log",
+            stream = "stream",
+            time   = "time",
+          }
+        }
+      }
+
+      // Write to Loki
+      loki.write "loki" {
+        endpoint {
+          url = "http://loki-gateway.observability.svc.cluster.local:80/loki/api/v1/push"
+
+          // Batch settings for better performance
+          batch_wait    = "1s"
+          batch_size    = 1048576
+        }
+      }
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+serviceAccount:
+  create: true
+  name: alloy
+
+# Enable RBAC
+rbac:
+  create: true

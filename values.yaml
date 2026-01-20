@@ -1,0 +1,119 @@
+# DemoDeck Helm Chart - Global Configuration
+# This file contains default values. Override with values-demo.yaml for environment-specific settings.
+
+# Global configuration
+global:
+  domain: k8s.demodeck.xyz
+  registry: demodeckacr.azurecr.io
+  ingress:
+    className: azure/application-gateway
+    usePrivateIP: "false"
+    enableSSL: false
+
+# Namespace configuration
+namespaces:
+  services: shared-services
+  tenants: tenant-uis
+
+# Backend Services Configuration
+services:
+  # Tenant API - serves tenant configuration
+  tenantAPI:
+    enabled: true
+    name: tenant-api
+    image: demodeck-tenant-api:release-2.0
+    replicas: 2
+    port: 8080
+    healthPath: /health
+    ingress:
+      enabled: true
+      host: tenant-api  # Will become tenant-api.k8s.demodeck.xyz
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # Auth API - handles authentication
+  authAPI:
+    enabled: true
+    name: auth-api
+    image: demodeck-auth-api:release-2.0
+    replicas: 2
+    port: 8080
+    healthPath: /health
+    ingress:
+      enabled: true
+      host: auth-api  # Will become auth-api.k8s.demodeck.xyz
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # Product API - business logic
+  productAPI:
+    enabled: true
+    name: product-api
+    image: demodeck-product-api:release-2.0
+    replicas: 2
+    port: 8080
+    healthPath: /health
+    ingress:
+      enabled: true
+      host: product-api  # Will become product-api.k8s.demodeck.xyz
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # Legacy API - .NET Framework 4.8 (Windows container)
+  legacyAPI:
+    enabled: true
+    name: legacy-api
+    image: demodeck-legacy-api:1.0.0
+    replicas: 1
+    port: 80
+    healthPath: /api/health
+    ingress:
+      enabled: true
+      host: legacy-api  # Will become legacy-api.k8s.demodeck.xyz
+    # Windows container requires specific node selection
+    nodeSelector:
+      kubernetes.io/os: windows
+    tolerations:
+      - key: "os"
+        operator: "Equal"
+        value: "windows"
+        effect: "NoSchedule"
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+
+# Tenant UI Configuration
+tenants:
+  # Common settings for all tenant UIs
+  common:
+    port: 80
+    healthPath: /
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+
+  # Tenant list - populated in environment-specific values file (e.g., values-demo.yaml)
+  list: []

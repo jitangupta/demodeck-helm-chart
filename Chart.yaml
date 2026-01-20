@@ -1,0 +1,15 @@
+apiVersion: v2
+name: demodeck-helm-chart
+description: DemoDeck Multi-Tenant SaaS Platform Helm Chart
+type: application
+version: 1.0.0
+appVersion: "2.0.0"
+maintainers:
+  - name: DemoDeck Team
+    email: team@demodeck.xyz
+keywords:
+  - saas
+  - multi-tenant
+  - kubernetes
+  - azure
+  - observability

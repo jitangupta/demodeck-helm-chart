@@ -1,0 +1,109 @@
+{{- if .Values.services.tenantAPI.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.services.tenantAPI.name }}
+  namespace: {{ .Values.namespaces.services }}
+  labels:
+    {{- include "demodeck.labels" . | nindent 4 }}
+    app: {{ .Values.services.tenantAPI.name }}
+    app.kubernetes.io/component: tenant-api
+spec:
+  replicas: {{ .Values.services.tenantAPI.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.services.tenantAPI.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.services.tenantAPI.name }}
+        app.kubernetes.io/component: tenant-api
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+      - name: {{ .Values.services.tenantAPI.name }}
+        image: {{ .Values.global.registry }}/{{ .Values.services.tenantAPI.image }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{ .Values.services.tenantAPI.port }}
+          name: http
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:{{ .Values.services.tenantAPI.port }}"
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        resources:
+          {{- toYaml .Values.services.tenantAPI.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.services.tenantAPI.healthPath }}
+            port: {{ .Values.services.tenantAPI.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.services.tenantAPI.healthPath }}
+            port: {{ .Values.services.tenantAPI.port }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.services.tenantAPI.name }}-service
+  namespace: {{ .Values.namespaces.services }}
+  labels:
+    {{- include "demodeck.labels" . | nindent 4 }}
+    app: {{ .Values.services.tenantAPI.name }}
+spec:
+  selector:
+    app: {{ .Values.services.tenantAPI.name }}
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: {{ .Values.services.tenantAPI.port }}
+    name: http
+  type: ClusterIP
+{{- if .Values.services.tenantAPI.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.services.tenantAPI.name }}-ingress
+  namespace: {{ .Values.namespaces.services }}
+  labels:
+    {{- include "demodeck.labels" . | nindent 4 }}
+    app: {{ .Values.services.tenantAPI.name }}
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.global.ingress.className }}
+    appgw.ingress.kubernetes.io/use-private-ip: {{ .Values.global.ingress.usePrivateIP | quote }}
+    {{- if .Values.global.ingress.enableSSL }}
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.global.ingress.className }}
+  rules:
+  - host: {{ .Values.services.tenantAPI.ingress.host }}.{{ .Values.global.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.services.tenantAPI.name }}-service
+            port:
+              number: 80
+  {{- if .Values.global.ingress.enableSSL }}
+  tls:
+  - hosts:
+    - {{ .Values.services.tenantAPI.ingress.host }}.{{ .Values.global.domain }}
+    secretName: {{ .Values.services.tenantAPI.name }}-tls-secret
+  {{- end }}
+{{- end }}
+{{- end }}

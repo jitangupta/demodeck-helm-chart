@@ -1,0 +1,64 @@
+# DemoDeck Helm Chart - Demo Environment Configuration
+# Usage: helm upgrade --install demodeck . -f values-demo.yaml
+
+# Global configuration for demo environment
+global:
+  domain: k8s.demodeck.xyz
+  registry: demodeckacr.azurecr.io
+  ingress:
+    className: azure/application-gateway
+    usePrivateIP: "false"
+    enableSSL: false
+
+# Service configurations for demo
+services:
+  tenantAPI:
+    enabled: true
+    replicas: 2
+    image: demodeck-tenant-api:release-2.0
+    ingress:
+      enabled: true
+      host: tenant-api  # tenant-api.k8s.demodeck.xyz
+
+  authAPI:
+    enabled: true
+    replicas: 2
+    image: demodeck-auth-api:release-2.0
+    ingress:
+      enabled: true
+      host: auth-api  # auth-api.k8s.demodeck.xyz
+
+  productAPI:
+    enabled: true
+    replicas: 2
+    image: demodeck-product-api:release-2.0
+    ingress:
+      enabled: true
+      host: product-api  # product-api.k8s.demodeck.xyz
+
+  legacyAPI:
+    enabled: true
+    replicas: 1
+    image: demodeck-legacy-api:v1.0.1
+    ingress:
+      enabled: true
+      host: legacy-api  # legacy-api.k8s.demodeck.xyz
+
+# Tenant list for demo environment
+# Each tenant gets: Deployment, Service, Ingress
+tenants:
+  list:
+    - name: acme
+      subdomain: acme
+      enabled: true
+      image: demodeck-tenant-ui:observability-release
+      replicas: 2
+      apiVersion: release-2.0
+
+    # Add more tenants as needed:
+    # - name: globalx
+    #   subdomain: globalx
+    #   enabled: true
+    #   image: demodeck-tenant-ui:release-2.1.3
+    #   replicas: 2
+    #   apiVersion: release-2.0

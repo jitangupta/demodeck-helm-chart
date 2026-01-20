@@ -1,0 +1,115 @@
+{{- if .Values.services.authAPI.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.services.authAPI.name }}
+  namespace: {{ .Values.namespaces.services }}
+  labels:
+    {{- include "demodeck.labels" . | nindent 4 }}
+    app: {{ .Values.services.authAPI.name }}
+    app.kubernetes.io/component: auth-api
+spec:
+  replicas: {{ .Values.services.authAPI.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.services.authAPI.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.services.authAPI.name }}
+        app.kubernetes.io/component: auth-api
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+      - name: {{ .Values.services.authAPI.name }}
+        image: {{ .Values.global.registry }}/{{ .Values.services.authAPI.image }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{ .Values.services.authAPI.port }}
+          name: http
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:{{ .Values.services.authAPI.port }}"
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        - name: TenantUrl
+          value: "http://{{ .Values.services.tenantAPI.name }}-service.{{ .Values.namespaces.services }}.svc.cluster.local/api/tenant"
+        - name: Cors__AllowedOrigins__0
+          value: "http://{{ .Values.services.authAPI.ingress.host }}.{{ .Values.global.domain }}"
+        - name: Cors__AllowedOrigins__1
+          value: "http://*.{{ .Values.global.domain }}"
+        resources:
+          {{- toYaml .Values.services.authAPI.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.services.authAPI.healthPath }}
+            port: {{ .Values.services.authAPI.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.services.authAPI.healthPath }}
+            port: {{ .Values.services.authAPI.port }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.services.authAPI.name }}-service
+  namespace: {{ .Values.namespaces.services }}
+  labels:
+    {{- include "demodeck.labels" . | nindent 4 }}
+    app: {{ .Values.services.authAPI.name }}
+spec:
+  selector:
+    app: {{ .Values.services.authAPI.name }}
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: {{ .Values.services.authAPI.port }}
+    name: http
+  type: ClusterIP
+{{- if .Values.services.authAPI.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.services.authAPI.name }}-ingress
+  namespace: {{ .Values.namespaces.services }}
+  labels:
+    {{- include "demodeck.labels" . | nindent 4 }}
+    app: {{ .Values.services.authAPI.name }}
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.global.ingress.className }}
+    appgw.ingress.kubernetes.io/use-private-ip: {{ .Values.global.ingress.usePrivateIP | quote }}
+    {{- if .Values.global.ingress.enableSSL }}
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.global.ingress.className }}
+  rules:
+  - host: {{ .Values.services.authAPI.ingress.host }}.{{ .Values.global.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.services.authAPI.name }}-service
+            port:
+              number: 80
+  {{- if .Values.global.ingress.enableSSL }}
+  tls:
+  - hosts:
+    - {{ .Values.services.authAPI.ingress.host }}.{{ .Values.global.domain }}
+    secretName: {{ .Values.services.authAPI.name }}-tls-secret
+  {{- end }}
+{{- end }}
+{{- end }}

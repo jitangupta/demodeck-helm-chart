@@ -1,0 +1,138 @@
+{{/*
+Tenant UI Deployments - Loops through tenants.list to create resources for each tenant
+Each enabled tenant gets: Deployment, Service, and Ingress
+*/}}
+{{- range .Values.tenants.list }}
+{{- if .enabled }}
+---
+# ============================================================================
+# {{ .name | upper }} TENANT UI
+# ============================================================================
+
+# Deployment for {{ .name }} tenant UI
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .name }}-ui
+  namespace: {{ $.Values.namespaces.tenants }}
+  labels:
+    {{- include "demodeck.labels" $ | nindent 4 }}
+    app: {{ .name }}-ui
+    app.kubernetes.io/component: tenant-ui
+    tenant: {{ .name }}
+spec:
+  replicas: {{ .replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ .name }}-ui
+      tenant: {{ .name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .name }}-ui
+        app.kubernetes.io/component: tenant-ui
+        tenant: {{ .name }}
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+      - name: tenant-ui
+        image: {{ $.Values.global.registry }}/{{ .image }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{ $.Values.tenants.common.port }}
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: TENANT_NAME
+          value: {{ .name | quote }}
+        - name: API_VERSION
+          value: {{ .apiVersion | default "release-2.0" | quote }}
+        # Direct API URLs (no YARP gateway)
+        - name: VUE_APP_TENANT_API_URL
+          value: "http://{{ $.Values.services.tenantAPI.ingress.host }}.{{ $.Values.global.domain }}"
+        - name: VUE_APP_AUTH_API_URL
+          value: "http://{{ $.Values.services.authAPI.ingress.host }}.{{ $.Values.global.domain }}"
+        - name: VUE_APP_PRODUCT_API_URL
+          value: "http://{{ $.Values.services.productAPI.ingress.host }}.{{ $.Values.global.domain }}"
+        - name: VUE_APP_LEGACY_API_URL
+          value: "http://{{ $.Values.services.legacyAPI.ingress.host }}.{{ $.Values.global.domain }}"
+        resources:
+          {{- toYaml $.Values.tenants.common.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: {{ $.Values.tenants.common.healthPath }}
+            port: {{ $.Values.tenants.common.port }}
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: {{ $.Values.tenants.common.healthPath }}
+            port: {{ $.Values.tenants.common.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+# Service for {{ .name }} tenant UI
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}-ui-service
+  namespace: {{ $.Values.namespaces.tenants }}
+  labels:
+    {{- include "demodeck.labels" $ | nindent 4 }}
+    app: {{ .name }}-ui
+    tenant: {{ .name }}
+spec:
+  selector:
+    app: {{ .name }}-ui
+    tenant: {{ .name }}
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: {{ $.Values.tenants.common.port }}
+    name: http
+  type: ClusterIP
+---
+# Ingress for {{ .name }} tenant UI
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .name }}-ui-ingress
+  namespace: {{ $.Values.namespaces.tenants }}
+  labels:
+    {{- include "demodeck.labels" $ | nindent 4 }}
+    app: {{ .name }}-ui
+    tenant: {{ .name }}
+  annotations:
+    kubernetes.io/ingress.class: {{ $.Values.global.ingress.className }}
+    appgw.ingress.kubernetes.io/use-private-ip: {{ $.Values.global.ingress.usePrivateIP | quote }}
+    {{- if $.Values.global.ingress.enableSSL }}
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    appgw.ingress.kubernetes.io/appgw-ssl-certificate: "wildcard-{{ $.Values.global.domain | replace "." "-" }}-cert"
+    {{- end }}
+spec:
+  ingressClassName: {{ $.Values.global.ingress.className }}
+  rules:
+  - host: {{ .subdomain }}.{{ $.Values.global.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .name }}-ui-service
+            port:
+              number: 80
+  {{- if $.Values.global.ingress.enableSSL }}
+  tls:
+  - hosts:
+    - {{ .subdomain }}.{{ $.Values.global.domain }}
+    secretName: {{ .name }}-tls-secret
+  {{- end }}
+{{- end }}
+{{- end }}
