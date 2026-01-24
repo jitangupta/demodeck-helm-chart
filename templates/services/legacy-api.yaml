@@ -44,6 +44,11 @@ spec:
           value: "1.0.0"
         - name: AppSettings__Environment
           value: "Production"
+        # OpenTelemetry tracing configuration
+        - name: OTEL_SERVICE_NAME
+          value: "legacy-api"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://tempo.{{ .Values.namespaces.observability }}.svc.cluster.local:4317"
         resources:
           {{- toYaml .Values.services.legacyAPI.resources | nindent 10 }}
         # Windows containers need longer startup time due to IIS initialization

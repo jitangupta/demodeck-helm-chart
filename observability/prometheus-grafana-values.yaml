@@ -1,18 +1,37 @@
-# Prometheus and Grafana stack configuration
+# Prometheus and Grafana stack configuration (Workload Identity)
 # Helm chart: prometheus-community/kube-prometheus-stack
 # Install: helm upgrade --install prometheus prometheus-community/kube-prometheus-stack -n observability -f prometheus-grafana-values.yaml
 #
 # Prerequisites:
 # 1. Create Grafana admin password secret:
 #    kubectl create secret generic grafana-admin -n observability \
+#      --from-literal=admin-user=admin \
 #      --from-literal=admin-password='your-secure-password'
+#
+# 2. Run terraform apply to create managed identity and federated credentials
+# 3. Get the client ID from terraform output: terraform output observability_identity_client_id
+# 4. Update the client-id annotation below with the actual value
 
 # Prometheus configuration
 prometheus:
   enabled: true
+
+  # Service Account with Workload Identity
+  serviceAccount:
+    create: true
+    name: prometheus-kube-prometheus-prometheus
+    annotations:
+      # UPDATE THIS: Get value from terraform output observability_identity_client_id
+      azure.workload.identity/client-id: "<REPLACE_WITH_CLIENT_ID>"
+
   prometheusSpec:
-    retention: 15d
+    retention: 15d           # Local retention (recent data for fast queries)
     retentionSize: 50GB
+
+    # Pod label for Workload Identity
+    podMetadata:
+      labels:
+        azure.workload.identity/use: "true"
 
     resources:
       limits:
@@ -22,6 +41,7 @@ prometheus:
         cpu: 500m
         memory: 2Gi
 
+    # Local storage for recent data and WAL
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -29,7 +49,27 @@ prometheus:
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
-              storage: 100Gi
+              storage: 50Gi  # Reduced since long-term storage is in Azure
+
+    # Thanos sidecar for Azure Blob Storage with Workload Identity
+    thanos:
+      image: quay.io/thanos/thanos:v0.34.1
+      # Inline object storage config using Managed Identity
+      objectStorageConfig:
+        secret: |
+          type: AZURE
+          config:
+            storage_account: demodeckstorage
+            container: prometheus-metrics
+            endpoint: blob.core.windows.net
+            msi_resource: https://storage.azure.com/
+      resources:
+        limits:
+          cpu: 500m
+          memory: 512Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
 
     # Scrape configs for demodeck services
     additionalScrapeConfigs:
@@ -56,6 +96,17 @@ prometheus:
             action: replace
             target_label: kubernetes_pod_name
 
+  # Thanos sidecar service for Thanos Query to connect
+  thanosService:
+    enabled: true
+    type: ClusterIP
+    port: 10901
+    targetPort: 10901
+
+  # Thanos sidecar service monitor
+  thanosServiceMonitor:
+    enabled: true
+
 # Grafana configuration
 grafana:
   enabled: true
@@ -80,7 +131,7 @@ grafana:
       cpu: 100m
       memory: 256Mi
 
-  # Datasources - Add Loki for log querying
+  # Datasources - Add Loki for log querying and Tempo for tracing
   additionalDataSources:
     - name: Loki
       type: loki
@@ -92,6 +143,25 @@ grafana:
         httpHeaderName1: "X-Scope-OrgID"
       secureJsonData:
         httpHeaderValue1: "demodeck"
+
+    # Tempo datasource for distributed tracing
+    - name: Tempo
+      type: tempo
+      url: http://tempo.observability.svc.cluster.local:3200
+      access: proxy
+      isDefault: false
+      jsonData:
+        tracesToLogs:
+          datasourceUid: loki
+          tags: ['service.name']
+          mappedTags: [{ key: 'service.name', value: 'service_name' }]
+          filterByTraceID: true
+          spanStartTimeShift: '-1h'
+          spanEndTimeShift: '1h'
+        nodeGraph:
+          enabled: true
+        lokiSearch:
+          datasourceUid: loki
 
   # Dashboard providers
   dashboardProviders:

@@ -1,11 +1,11 @@
-# Loki configuration with Azure Blob Storage backend
+# Loki configuration with Azure Blob Storage backend (Workload Identity)
 # Helm chart: grafana/loki
 # Install: helm upgrade --install loki grafana/loki -n observability -f loki-values.yaml
 #
 # Prerequisites:
-# 1. Create Azure Storage secret:
-#    kubectl create secret generic loki-azure-credentials -n observability \
-#      --from-literal=AZURE_STORAGE_KEY='your-storage-account-key'
+# 1. Run terraform apply to create managed identity and federated credentials
+# 2. Get the client ID from terraform output: terraform output observability_identity_client_id
+# 3. Update the client-id annotation below with the actual value
 
 loki:
   auth_enabled: false
@@ -24,13 +24,14 @@ loki:
           prefix: loki_index_
           period: 24h
 
-  # Azure Blob Storage configuration
+  # Azure Blob Storage configuration with Workload Identity
   storage:
     type: azure
     azure:
       accountName: demodeckstorage
       containerName: pod-logs
       endpointSuffix: blob.core.windows.net
+      useManagedIdentity: true
     bucketNames:
       chunks: chunks
       ruler: ruler
@@ -41,6 +42,7 @@ loki:
       account_name: demodeckstorage
       container_name: pod-logs
       endpoint_suffix: blob.core.windows.net
+      use_managed_identity: true
     tsdb_shipper:
       active_index_directory: /var/loki/tsdb-index
       cache_location: /var/loki/tsdb-cache
@@ -65,6 +67,14 @@ loki:
     retention_delete_delay: 2h
     retention_delete_worker_count: 150
 
+# Service Account with Workload Identity
+serviceAccount:
+  create: true
+  name: loki
+  annotations:
+    # UPDATE THIS: Get value from terraform output observability_identity_client_id
+    azure.workload.identity/client-id: "<REPLACE_WITH_CLIENT_ID>"
+
 # Single binary deployment mode (simple, suitable for demo)
 deploymentMode: SingleBinary
 
@@ -81,14 +91,9 @@ singleBinary:
     enabled: true
     size: 50Gi
     storageClass: managed-premium
-  extraEnv:
-    - name: AZURE_STORAGE_ACCOUNT
-      value: demodeckstorage
-    - name: AZURE_STORAGE_KEY
-      valueFrom:
-        secretKeyRef:
-          name: loki-azure-credentials
-          key: AZURE_STORAGE_KEY
+  # Pod label for Workload Identity
+  podLabels:
+    azure.workload.identity/use: "true"
 
 # Gateway for Fluent Bit and Alloy to push logs
 gateway:
@@ -132,8 +137,3 @@ monitoring:
     labels:
       release: prometheus
     namespace: observability
-
-# Extra environment variables from secret
-extraEnvFrom:
-  - secretRef:
-      name: loki-azure-credentials

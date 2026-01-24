@@ -1,0 +1,98 @@
+# Grafana Tempo - Distributed Tracing Backend (Workload Identity)
+# Helm chart: grafana/tempo
+# Install: helm upgrade --install tempo grafana/tempo -n observability -f tempo-values.yaml
+#
+# Prerequisites:
+# 1. Add Grafana Helm repo: helm repo add grafana https://grafana.github.io/helm-charts
+# 2. Create namespace: kubectl create namespace observability (if not exists)
+# 3. Run terraform apply to create managed identity, federated credentials, and storage containers
+# 4. Get the client ID from terraform output: terraform output observability_identity_client_id
+# 5. Update the client-id annotation below with the actual value
+
+tempo:
+  reportingEnabled: false
+
+  # Storage configuration - Azure Blob Storage with Workload Identity
+  storage:
+    trace:
+      backend: azure
+      azure:
+        container_name: tempo-traces
+        storage_account_name: demodeckstorage
+        endpoint_suffix: blob.core.windows.net
+        use_managed_identity: true
+      wal:
+        path: /var/tempo/wal
+      block:
+        bloom_filter_false_positive: 0.05
+        encoding: zstd
+
+  # OTLP receivers for trace ingestion
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+  # Compaction and retention
+  compactor:
+    compaction:
+      block_retention: 168h  # 7 days retention (match Loki's reject_old_samples_max_age)
+
+  # Server configuration
+  server:
+    http_listen_port: 3200
+    grpc_listen_port: 9095
+
+# Single binary deployment mode (matches Loki's SingleBinary mode)
+deploymentMode: SingleBinary
+
+singleBinary:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  persistence:
+    enabled: true
+    size: 10Gi  # For WAL only, traces go to Azure
+    storageClass: managed-premium
+  # Pod label for Workload Identity
+  podLabels:
+    azure.workload.identity/use: "true"
+
+# Service configuration
+service:
+  type: ClusterIP
+
+# Service Account with Workload Identity
+serviceAccount:
+  create: true
+  name: tempo
+  annotations:
+    # UPDATE THIS: Get value from terraform output observability_identity_client_id
+    azure.workload.identity/client-id: "<REPLACE_WITH_CLIENT_ID>"
+
+# Pod security
+securityContext:
+  fsGroup: 10001
+  runAsGroup: 10001
+  runAsNonRoot: true
+  runAsUser: 10001
+
+# Node selector - Linux nodes only
+nodeSelector:
+  kubernetes.io/os: linux
+
+# Monitoring - integrate with Prometheus
+monitoring:
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: prometheus
+    namespace: observability

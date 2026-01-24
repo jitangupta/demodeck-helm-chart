@@ -40,6 +40,13 @@ spec:
           value: "http://{{ .Values.services.authAPI.ingress.host }}.{{ .Values.global.domain }}"
         - name: Cors__AllowedOrigins__1
           value: "http://*.{{ .Values.global.domain }}"
+        # OpenTelemetry tracing configuration
+        - name: OTEL_SERVICE_NAME
+          value: "auth-api"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://tempo.{{ .Values.namespaces.observability }}.svc.cluster.local:4317"
+        - name: OpenTelemetry__OtlpEndpoint
+          value: "http://tempo.{{ .Values.namespaces.observability }}.svc.cluster.local:4317"
         resources:
           {{- toYaml .Values.services.authAPI.resources | nindent 10 }}
         livenessProbe:
