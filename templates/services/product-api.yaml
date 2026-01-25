@@ -34,6 +34,19 @@ spec:
           value: "http://+:{{ .Values.services.productAPI.port }}"
         - name: ASPNETCORE_ENVIRONMENT
           value: "Production"
+        # CORS - Allow tenant UI origins
+        {{- $corsIndex := 0 }}
+        {{- range .Values.tenants.list }}
+        {{- if .enabled }}
+        - name: Cors__AllowedOrigins__{{ $corsIndex }}
+          value: "http://{{ .subdomain }}.{{ $.Values.global.domain }}"
+        {{- $corsIndex = add $corsIndex 1 }}
+        {{- end }}
+        {{- end }}
+        - name: Cors__AllowedOrigins__{{ $corsIndex }}
+          value: "http://localhost:8080"
+        - name: Cors__AllowCredentials
+          value: "true"
         # OpenTelemetry tracing configuration
         - name: OTEL_SERVICE_NAME
           value: "product-api"
@@ -88,8 +101,9 @@ metadata:
     {{- include "demodeck.labels" . | nindent 4 }}
     app: {{ .Values.services.productAPI.name }}
   annotations:
-    kubernetes.io/ingress.class: {{ .Values.global.ingress.className }}
     appgw.ingress.kubernetes.io/use-private-ip: {{ .Values.global.ingress.usePrivateIP | quote }}
+    appgw.ingress.kubernetes.io/health-probe-path: {{ .Values.services.productAPI.healthPath | quote }}
+    appgw.ingress.kubernetes.io/backend-protocol: "http"
     {{- if .Values.global.ingress.enableSSL }}
     appgw.ingress.kubernetes.io/ssl-redirect: "true"
     {{- end }}

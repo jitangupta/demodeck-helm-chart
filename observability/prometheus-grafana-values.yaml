@@ -194,7 +194,7 @@ grafana:
   # Ingress for Grafana
   ingress:
     enabled: true
-    ingressClassName: azure/application-gateway
+    ingressClassName: azure-application-gateway
     annotations:
       appgw.ingress.kubernetes.io/use-private-ip: "false"
     hosts:

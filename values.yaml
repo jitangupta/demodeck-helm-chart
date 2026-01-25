@@ -6,7 +6,7 @@ global:
   domain: k8s.demodeck.xyz
   registry: demodeckacr.azurecr.io
   ingress:
-    className: azure/application-gateway
+    className: azure-application-gateway
     usePrivateIP: "false"
     enableSSL: false
 
@@ -14,6 +14,7 @@ global:
 namespaces:
   services: shared-services
   tenants: tenant-uis
+  observability: observability
 
 # Backend Services Configuration
 services:
