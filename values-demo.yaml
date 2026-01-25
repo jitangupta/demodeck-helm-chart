@@ -14,7 +14,7 @@ global:
 services:
   tenantAPI:
     enabled: true
-    replicas: 2
+    replicas: 1
     image: demodeck-tenant-api:v1.0.2-observability
     ingress:
       enabled: true
@@ -22,7 +22,7 @@ services:
 
   authAPI:
     enabled: true
-    replicas: 2
+    replicas: 1
     image: demodeck-auth-api:v1.0.2-observability
     ingress:
       enabled: true
@@ -30,7 +30,7 @@ services:
 
   productAPI:
     enabled: true
-    replicas: 2
+    replicas: 1
     image: demodeck-product-api:v1.0.2-observability
     ingress:
       enabled: true
@@ -52,7 +52,7 @@ tenants:
       subdomain: acme
       enabled: true
       image: demodeck-tenant-ui:v1.0.2-observability
-      replicas: 2
+      replicas: 1
       apiVersion: release-2.0
 
     # Add more tenants as needed:

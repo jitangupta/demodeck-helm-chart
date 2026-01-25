@@ -5,44 +5,68 @@
 # Alloy is the successor to Grafana Agent and Promtail, with native Windows support
 
 image:
+  # Windows Server 2022 LTSC image for AKS Windows nodes
+  registry: docker.io
   repository: grafana/alloy
-  tag: "v1.0.0"
+  tag: "windowsservercore-ltsc2022"
   pullPolicy: IfNotPresent
 
-# Windows node selector - critical for Windows log collection
-nodeSelector:
-  kubernetes.io/os: windows
+# Disable config reloader - no Windows image available
+configReloader:
+  enabled: false
 
-tolerations:
-  - key: "os"
-    operator: "Equal"
-    value: "windows"
-    effect: "NoSchedule"
-
-# DaemonSet mode for log collection
+# DaemonSet mode for log collection with Windows node scheduling
 controller:
   type: daemonset
 
-# Windows-specific volume mounts
-extraVolumes:
-  - name: varlog
-    hostPath:
-      path: C:\var\log
-      type: DirectoryOrCreate
-  - name: programdata
-    hostPath:
-      path: C:\ProgramData\docker\containers
-      type: DirectoryOrCreate
+  # Windows node selector - critical for Windows log collection
+  nodeSelector:
+    kubernetes.io/os: windows
 
-extraVolumeMounts:
-  - name: varlog
-    mountPath: /var/log
-  - name: programdata
-    mountPath: /programdata/docker/containers
-    readOnly: true
+  tolerations:
+    - key: "os"
+      operator: "Equal"
+      value: "windows"
+      effect: "NoSchedule"
 
-# Alloy configuration using River syntax
+  # Windows containers run as ContainerAdministrator
+  podSecurityContext: {}
+
+  # Extra volumes for Windows paths
+  volumes:
+    extra:
+      - name: varlog
+        hostPath:
+          path: "C:/var/log"
+          type: DirectoryOrCreate
+      - name: programdata
+        hostPath:
+          path: "C:/ProgramData/containerd/root/io.containerd.grpc.v1.cri/containers"
+          type: DirectoryOrCreate
+
+# Alloy configuration
 alloy:
+  # Windows-specific storage path
+  storagePath: "C:/ProgramData/GrafanaLabs/Alloy/data"
+
+  # Extra args for Windows
+  extraArgs:
+    - "--server.http.listen-addr=0.0.0.0:12345"
+
+  securityContext: {}
+
+  # Volume mounts
+  mounts:
+    varlog: false
+    dockercontainers: false
+    extra:
+      - name: varlog
+        mountPath: "C:/var/log"
+      - name: programdata
+        mountPath: "C:/ProgramData/containerd/root/io.containerd.grpc.v1.cri/containers"
+        readOnly: true
+
+  # Alloy River configuration
   configMap:
     create: true
     content: |
@@ -95,12 +119,12 @@ alloy:
           target_label  = "node"
         }
 
-        // Build log file path for Windows containers
+        // Build log file path for Windows containers (containerd path)
         rule {
           source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
           target_label  = "__path__"
           separator     = "/"
-          replacement   = "C:\\var\\log\\pods\\*$1\\$2\\*.log"
+          replacement   = "C:/var/log/pods/*$1/$2/*.log"
         }
       }
 
@@ -135,21 +159,21 @@ alloy:
         }
       }
 
-      // Write to Loki
+      // Write to Loki (which stores in Azure Blob Storage)
       loki.write "loki" {
         endpoint {
           url = "http://loki-gateway.observability.svc.cluster.local:80/loki/api/v1/push"
 
           // Batch settings for better performance
-          batch_wait    = "1s"
-          batch_size    = 1048576
+          batch_wait = "1s"
+          batch_size = "1MiB"
         }
       }
 
 resources:
   limits:
     cpu: 200m
-    memory: 256Mi
+    memory: 512Mi
   requests:
     cpu: 100m
     memory: 128Mi

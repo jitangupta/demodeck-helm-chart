@@ -65,12 +65,8 @@ This directory contains Helm values files for deploying the observability stack 
 
 ```bash
 # Create observability namespace
-kubectl create namespace observability
-
-# Create Loki Azure Storage credentials
-kubectl create secret generic loki-azure-credentials \
-  --namespace observability \
-  --from-literal=AZURE_STORAGE_KEY='<your-storage-account-key>'
+# check before creating
+kubectl create namespace observability 
 
 # Create Grafana admin password
 kubectl create secret generic grafana-admin \
@@ -96,61 +92,41 @@ helm repo update
 ### 3.1 Install Loki (Log Storage & Aggregation)
 
 ```bash
-helm upgrade --install loki grafana/loki \
-  --namespace observability \
-  --values loki-values.yaml \
-  --wait --timeout 10m
+helm upgrade --install loki grafana/loki --namespace observability  --values loki-values.yaml   --wait --timeout 10m
 ```
 
 ### 3.2 Install Fluent Bit (Linux Log Collection)
 
 ```bash
-helm upgrade --install fluent-bit fluent/fluent-bit \
-  --namespace observability \
-  --values fluent-bit-values.yaml \
-  --wait
+helm upgrade --install fluent-bit fluent/fluent-bit --namespace observability --values fluent-bit-values.yaml 
 ```
 
 ### 3.3 Install Grafana Alloy (Windows Log Collection)
 
 ```bash
-helm upgrade --install alloy grafana/alloy \
-  --namespace observability \
-  --values alloy-values.yaml \
-  --wait
+helm upgrade --install alloy grafana/alloy --namespace observability  --values alloy-values.yaml 
 ```
 
 ### 3.4 Install Prometheus + Grafana Stack
 
 ```bash
-helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
-  --namespace observability \
-  --values prometheus-grafana-values.yaml \
-  --wait --timeout 10m
+helm upgrade --install prometheus prometheus-community/kube-prometheus-stack --namespace observability --values prometheus-grafana-values.yaml 
 ```
 
 ## Upgrade Commands
 
 ```bash
 # Upgrade Loki
-helm upgrade loki grafana/loki \
-  --namespace observability \
-  --values loki-values.yaml
+helm upgrade loki grafana/loki --namespace observability --values loki-values.yaml
 
 # Upgrade Fluent Bit
-helm upgrade fluent-bit fluent/fluent-bit \
-  --namespace observability \
-  --values fluent-bit-values.yaml
+helm upgrade fluent-bit fluent/fluent-bit  --namespace observability   --values fluent-bit-values.yaml
 
 # Upgrade Alloy
-helm upgrade alloy grafana/alloy \
-  --namespace observability \
-  --values alloy-values.yaml
+helm upgrade alloy grafana/alloy   --namespace observability   --values alloy-values.yaml
 
 # Upgrade Prometheus Stack
-helm upgrade prometheus prometheus-community/kube-prometheus-stack \
-  --namespace observability \
-  --values prometheus-grafana-values.yaml
+helm upgrade prometheus prometheus-community/kube-prometheus-stack   --namespace observability   --values prometheus-grafana-values.yaml
 ```
 
 ## Verification

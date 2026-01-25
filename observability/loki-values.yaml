@@ -28,28 +28,17 @@ loki:
   storage:
     type: azure
     azure:
-      accountName: demodeckstorage
-      containerName: pod-logs
-      endpointSuffix: blob.core.windows.net
-      useManagedIdentity: true
+      account_name: demodeckstorage
+      container_name: pod-logs
+      endpoint_suffix: blob.core.windows.net
+      use_managed_identity: false
+      use_federated_token: true
     bucketNames:
       chunks: chunks
       ruler: ruler
       admin: admin
 
-  storage_config:
-    azure:
-      account_name: demodeckstorage
-      container_name: pod-logs
-      endpoint_suffix: blob.core.windows.net
-      use_managed_identity: true
-    tsdb_shipper:
-      active_index_directory: /var/loki/tsdb-index
-      cache_location: /var/loki/tsdb-cache
-      cache_ttl: 24h
-
   limits_config:
-    retention_period: 744h  # 31 days
     max_query_series: 5000
     max_query_parallelism: 32
     ingestion_rate_mb: 16
@@ -61,11 +50,8 @@ loki:
 
   compactor:
     working_directory: /var/loki/compactor
-    shared_store: azure
     compaction_interval: 10m
-    retention_enabled: true
-    retention_delete_delay: 2h
-    retention_delete_worker_count: 150
+    retention_enabled: false
 
 # Service Account with Workload Identity
 serviceAccount:
@@ -73,24 +59,27 @@ serviceAccount:
   name: loki
   annotations:
     # UPDATE THIS: Get value from terraform output observability_identity_client_id
-    azure.workload.identity/client-id: "<REPLACE_WITH_CLIENT_ID>"
+    azure.workload.identity/client-id: "308ffb6c-c1fa-4047-8933-521942b7b4ce"
 
 # Single binary deployment mode (simple, suitable for demo)
 deploymentMode: SingleBinary
 
 singleBinary:
   replicas: 1
+  # Run on Linux nodes only
+  nodeSelector:
+    kubernetes.io/os: linux
   resources:
     limits:
-      cpu: 1
-      memory: 2Gi
-    requests:
       cpu: 500m
       memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
   persistence:
     enabled: true
-    size: 50Gi
-    storageClass: managed-premium
+    size: 10Gi
+    storageClass: managed-csi
   # Pod label for Workload Identity
   podLabels:
     azure.workload.identity/use: "true"
@@ -99,16 +88,26 @@ singleBinary:
 gateway:
   enabled: true
   replicas: 1
+  # Run on Linux nodes only
+  nodeSelector:
+    kubernetes.io/os: linux
   service:
     type: ClusterIP
     port: 80
   resources:
     limits:
-      cpu: 200m
-      memory: 256Mi
-    requests:
       cpu: 100m
       memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Disable caches for demo (saves resources)
+chunksCache:
+  enabled: false
+
+resultsCache:
+  enabled: false
 
 # Disable MinIO - using Azure Storage
 minio:
@@ -123,6 +122,14 @@ read:
 
 write:
   replicas: 0
+
+# Disable canary - not needed for demo
+lokiCanary:
+  enabled: false
+
+# Disable helm test (requires canary)
+test:
+  enabled: false
 
 # Monitoring
 monitoring:

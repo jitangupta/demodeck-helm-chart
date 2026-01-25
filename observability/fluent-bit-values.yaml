@@ -106,14 +106,14 @@ serviceAccount:
 rbac:
   create: true
 
-# Resources
+# Resources - increased memory limit to prevent OOM
 resources:
   limits:
-    cpu: 200m
-    memory: 256Mi
-  requests:
     cpu: 100m
-    memory: 128Mi
+    memory: 512Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
 
 # Prometheus metrics
 service:

@@ -22,11 +22,15 @@ prometheus:
     name: prometheus-kube-prometheus-prometheus
     annotations:
       # UPDATE THIS: Get value from terraform output observability_identity_client_id
-      azure.workload.identity/client-id: "<REPLACE_WITH_CLIENT_ID>"
+      azure.workload.identity/client-id: "308ffb6c-c1fa-4047-8933-521942b7b4ce"
 
   prometheusSpec:
     retention: 15d           # Local retention (recent data for fast queries)
     retentionSize: 50GB
+
+    # Run on Linux nodes only
+    nodeSelector:
+      kubernetes.io/os: linux
 
     # Pod label for Workload Identity
     podMetadata:
@@ -35,41 +39,29 @@ prometheus:
 
     resources:
       limits:
-        cpu: 2
-        memory: 4Gi
-      requests:
         cpu: 500m
-        memory: 2Gi
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
 
     # Local storage for recent data and WAL
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: managed-premium
+          storageClassName: managed-csi
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
-              storage: 50Gi  # Reduced since long-term storage is in Azure
+              storage: 10Gi
 
-    # Thanos sidecar for Azure Blob Storage with Workload Identity
-    thanos:
-      image: quay.io/thanos/thanos:v0.34.1
-      # Inline object storage config using Managed Identity
-      objectStorageConfig:
-        secret: |
-          type: AZURE
-          config:
-            storage_account: demodeckstorage
-            container: prometheus-metrics
-            endpoint: blob.core.windows.net
-            msi_resource: https://storage.azure.com/
-      resources:
-        limits:
-          cpu: 500m
-          memory: 512Mi
-        requests:
-          cpu: 100m
-          memory: 128Mi
+    # Thanos sidecar disabled for demo - enable when Azure storage is configured
+    # thanos:
+    #   image: quay.io/thanos/thanos:v0.34.1
+    #   objectStorageConfig:
+    #     existingSecret:
+    #       name: thanos-objstore-config
+    #       key: objstore.yml
 
     # Scrape configs for demodeck services
     additionalScrapeConfigs:
@@ -96,20 +88,20 @@ prometheus:
             action: replace
             target_label: kubernetes_pod_name
 
-  # Thanos sidecar service for Thanos Query to connect
+  # Thanos sidecar service disabled for demo
   thanosService:
-    enabled: true
-    type: ClusterIP
-    port: 10901
-    targetPort: 10901
+    enabled: false
 
-  # Thanos sidecar service monitor
   thanosServiceMonitor:
-    enabled: true
+    enabled: false
 
 # Grafana configuration
 grafana:
   enabled: true
+
+  # Run on Linux nodes only
+  nodeSelector:
+    kubernetes.io/os: linux
 
   adminUser: admin
   # Use existing secret for password
@@ -120,16 +112,16 @@ grafana:
 
   persistence:
     enabled: true
-    size: 10Gi
-    storageClassName: managed-premium
+    size: 5Gi
+    storageClassName: managed-csi
 
   resources:
     limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 100m
+      cpu: 200m
       memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
 
   # Datasources - Add Loki for log querying and Tempo for tracing
   additionalDataSources:
@@ -163,23 +155,8 @@ grafana:
         lokiSearch:
           datasourceUid: loki
 
-  # Dashboard providers
-  dashboardProviders:
-    dashboardproviders.yaml:
-      apiVersion: 1
-      providers:
-        - name: 'demodeck'
-          orgId: 1
-          folder: 'DemoDeck'
-          type: file
-          disableDeletion: false
-          editable: true
-          options:
-            path: /var/lib/grafana/dashboards/demodeck
-
-  # Pre-configured dashboards
-  dashboardsConfigMaps:
-    demodeck: "grafana-demodeck-dashboards"
+  # Dashboard providers - dashboards loaded via sidecar
+  # Custom dashboards can be added as ConfigMaps with label grafana_dashboard=1
 
   # Grafana.ini configuration
   grafana.ini:
@@ -211,44 +188,35 @@ grafana:
       enabled: true
       label: grafana_datasource
 
-# Alertmanager configuration
+# Alertmanager configuration - disabled for demo to save resources
 alertmanager:
-  enabled: true
-  alertmanagerSpec:
-    storage:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: managed-premium
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 10Gi
-    resources:
-      limits:
-        cpu: 200m
-        memory: 256Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
+  enabled: false
 
 # Node exporters - for Linux nodes only
 nodeExporter:
   enabled: true
+  nodeSelector:
+    kubernetes.io/os: linux
 
 # Kube state metrics
 kubeStateMetrics:
   enabled: true
+  nodeSelector:
+    kubernetes.io/os: linux
 
 # Prometheus operator
 prometheusOperator:
   enabled: true
+  # Run on Linux nodes only
+  nodeSelector:
+    kubernetes.io/os: linux
   resources:
     limits:
-      cpu: 200m
-      memory: 256Mi
-    requests:
       cpu: 100m
       memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
 
 # Default rules
 defaultRules:
