@@ -47,7 +47,7 @@ config:
     [INPUT]
         Name tail
         Path /var/log/containers/*.log
-        multiline.parser docker, cri
+        multiline.parser cri
         Tag kube.*
         Mem_Buf_Limit 50MB
         Skip_Long_Lines On
@@ -75,7 +75,7 @@ config:
         Host loki-gateway.observability.svc.cluster.local
         Port 80
         Labels job=fluent-bit, cluster=demodeck-aks, environment=demo, os=linux, collector=fluent-bit
-        Label_Map_Path /fluent-bit/etc/labelmap.json
+        Label_Map_Path /fluent-bit/etc/conf/labelmap.json
         Remove_Keys kubernetes, stream
         Line_Format json
 

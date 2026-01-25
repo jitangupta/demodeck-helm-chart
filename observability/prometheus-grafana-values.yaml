@@ -132,9 +132,6 @@ grafana:
       isDefault: false
       jsonData:
         maxLines: 1000
-        httpHeaderName1: "X-Scope-OrgID"
-      secureJsonData:
-        httpHeaderValue1: "demodeck"
 
     # Tempo datasource for distributed tracing
     - name: Tempo
